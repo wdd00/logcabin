@@ -1039,6 +1039,9 @@ RaftConsensus::init()
 #endif
 
     NOTICE("My server ID is %lu", serverId);
+    NOTICE("The device name is %s", dev_name.c_str());
+    NOTICE("The port number of infiniband is %lu", ib_port);
+    NOTICE("The gid index of infiniband is %lu", gid_idx);
 
     if (storageLayout.topDir.fd == -1) {
         if (globals.config.read("use-temporary-storage", false))

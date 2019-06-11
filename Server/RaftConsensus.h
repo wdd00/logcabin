@@ -1465,6 +1465,21 @@ class RaftConsensus {
      */
     std::string serverAddresses;
 
+    /**
+     * the device of RDMA
+     */
+    std::string dev_name;
+
+    /**
+     * the port of infiniband network
+     */
+    int ib_port;
+
+    /**
+     * the gid of the infiniband adapter  
+     */
+    int gid_idx;
+
   private:
 
     /**

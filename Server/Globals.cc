@@ -26,6 +26,7 @@
 #include "Server/RaftConsensus.h"
 #include "Server/RaftService.h"
 #include "Server/StateMachine.h"
+#include "RPC/MessageSocket.h"
 
 namespace LogCabin {
 namespace Server {
@@ -172,7 +173,10 @@ Globals::init()
                    address.toString().c_str());
         }
         raft->serverAddresses = listenAddressesStr;
-        raft->init();
+        raft->dev_name = config.read<std::string>("dev_name", NULL);
+	raft->ib_port = config.read<uint64_t>("ib_port", 1);
+	raft->gid_idx = config.read<uint64_t>("gid_idx", 0);
+	raft->init();
     }
 
     if (!stateMachine) {

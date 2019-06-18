@@ -106,7 +106,7 @@ if (env['CXX_FAMILY'] == 'gcc' and
 
 if env['CXX_FAMILY'] == 'gcc':
     env.Prepend(CXXFLAGS = [
-        "-Wall",
+	"-Wall",
         "-Wextra",
         "-Wcast-align",
         "-Wcast-qual",
@@ -179,9 +179,9 @@ env.Prepend(GTESTCXXFLAGS = [
 ])
 
 if env["BUILDTYPE"] == "DEBUG":
-    env.Append(CPPFLAGS = [ "-g", "-DDEBUG" ])
+    env.Append(CPPFLAGS = [ "-g", "-DDEBUG"])
 elif env["BUILDTYPE"] == "RELEASE":
-    env.Append(CPPFLAGS = [ "-DNDEBUG", "-O2" ])
+    env.Append(CPPFLAGS = [ "-DNDEBUG", "-O2"])
 else:
     print "Error BUILDTYPE must be RELEASE or DEBUG"
     sys.exit(-1)
@@ -269,7 +269,7 @@ daemon = env.Program("build/LogCabin",
              object_files['RPC'] +
              object_files['Event'] +
              object_files['Core']),
-            LIBS = [ "pthread", "protobuf", "rt", "cryptopp" ])
+            LIBS = [ "ibverbs", "pthread", "protobuf", "rt", "cryptopp" ])
 env.Default(daemon)
 
 storageTool = env.Program("build/Storage/Tool",
@@ -282,7 +282,7 @@ storageTool = env.Program("build/Storage/Tool",
              object_files['Tree'] +
              object_files['Protocol'] +
              object_files['Core']),
-            LIBS = [ "pthread", "protobuf", "rt", "cryptopp" ])
+            LIBS = [ "ibverbs", "pthread", "protobuf", "rt", "cryptopp" ])
 env.Default(storageTool)
 
 # Create empty directory so that it can be installed to /var/log/logcabin

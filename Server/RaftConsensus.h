@@ -1473,7 +1473,7 @@ class RaftConsensus {
     /**
      * the port of infiniband network
      */
-    int ib_port;
+    uint16_t ib_port;
 
     /**
      * the gid of the infiniband adapter  

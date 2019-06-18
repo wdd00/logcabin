@@ -19,6 +19,9 @@
 #include <netinet/ip.h>
 #include <string.h>
 #include <sys/types.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <infiniband/verbs.h>
 
 #include <sstream>
 #include <vector>
@@ -65,6 +68,125 @@ Address::Address(const std::string& str, uint16_t defaultPort)
         }
 
         hosts.push_back({host, port});
+    }
+}
+
+Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_name, uint16_t ib_port, int &rc)
+    : originalString(str)
+    , hosts()
+    , storage()
+    , len(0)
+    , ib_ctx()
+    , cq()
+    , pd()
+{
+    struct ibv_device **dev_list = NULL;
+    struct ibv_device *ib_dev = NULL;
+    int num_devices;
+    rc = 0;
+
+    memset(&storage, 0, sizeof(storage));
+
+    std::vector<std::string> hostsList = Core::StringUtil::split(str, ',');
+    for (auto it = hostsList.begin(); it != hostsList.end(); ++it) {
+        std::string host = *it;
+        std::string port;
+        if (!host.empty())
+             continue;
+
+        size_t lastColon = host.rfind(':');
+        if (lastColon != host.npos &&
+            host.find(']', lastColon) == host.npos) {
+	    // following lastColon is a port number
+	    port = host.substr(lastColon + 1);
+            host.erase(lastColon);
+        } else {
+	    // use default port
+	    port = Core::StringUtil::toString(defaultPort);
+	}
+
+	// IPv6 hosts are surrounded in brackets. These need to be stripped.
+	if (host.at(0) == '[' &&
+            host.at(host.length() - 1) == ']') {
+            host = host.substr(1, host.length() - 2);
+        }
+
+        hosts.push_back({host, port});
+    }
+
+    NOTICE("searching for IB devices in host.");
+
+    // get device name in the system 
+    dev_list = ibv_get_device_list(&num_devices);
+    if (!dev_list) {
+        ERROR("failed to get IB devices list.");
+	return;
+    }
+
+    // if there isn't any IB device in host 
+    if (!num_devices) {
+        ERROR("found %d device(s).", num_devices);
+        if(dev_list) {
+		ibv_free_device_list(dev_list);
+		dev_list = NULL;
+	}
+	return;
+    }
+
+    NOTICE("found %d device(s).", num_devices);
+
+    // search for the specific device we want to work with 
+    for (int i = 0; i < num_devices; i++) {
+        if(!dev_name) {
+                dev_name = strdup(ibv_get_device_name(dev_list[i]));
+                NOTICE("device not specified, using first one found: %s .", dev_name);
+        }
+        if (strcmp(ibv_get_device_name(dev_list[i]), dev_name) != 0) {
+                ib_dev = dev_list[i];
+                break;
+        }
+    }
+
+    // if the device wasn't found in host 
+    if (!ib_dev) {
+        ERROR("IB device %s wasn't found.", dev_name);
+    } else {
+    	// get device handle
+    	ib_ctx = ibv_open_device(ib_dev);
+    	if (!ib_ctx) { 
+    	    ERROR("Failed to open device %s .", dev_name);
+	}
+    }
+
+    // we are now done with device list, free it 
+    ibv_free_device_list(dev_list);
+    dev_list = NULL;
+    ib_dev = NULL;
+
+    // if fail to open device
+    if(!ib_dev)
+	return;
+
+    // query port properties 
+    if (ibv_query_port(ib_ctx, ib_port, &port_attr)) {
+        ERROR("ibv_query_port on port %d failed.", ib_port);
+	return;
+    }
+
+    // allocate Protection Domain 
+    pd = ibv_alloc_pd(ib_ctx);
+    if (!pd) {
+        ERROR("ibv_alloc_pd failed.");
+	return;
+    }
+
+    // how many entries the Completion Queue should hold? what about default value is 1024? 
+    unsigned int cq_size = 1024;
+    cq = ibv_create_cq(ib_ctx, cq_size, NULL, NULL, 0);
+    if (!cq) {
+        ERROR("Failed to create CQ with %u entries.", cq_size);
+	ibv_dealloc_pd(pd);
+	return;
     }
 }
 

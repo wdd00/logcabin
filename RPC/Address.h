@@ -20,6 +20,7 @@
 #include <sys/socket.h>
 #include <string>
 #include <vector>
+#include <infiniband/verbs.h>
 
 #include "Core/Time.h"
 
@@ -54,6 +55,28 @@ class Address {
      *      The port number to use if none is specified in str.
      */
     Address(const std::string& str, uint16_t defaultPort);
+
+    /**
+     * Constructor. you will usually need to call #refresh() before using this class.
+     * \param str
+     *      A string representation of the host and, optionally, a port number.
+     *          - hostname:port
+     *          - hostname
+     *          - IPv4Address:port
+     *          - IPv4Address
+     *          - [IPv6Address]:port
+     *          - [IPv6Address]
+     *      Or a comma-delimited list of these to represent multiple hosts. 
+     * \param defaultPort
+     *      The port number to use if none is specified in str.
+     * \param dev_name
+     *      The name of infiniband device.
+     * \param ib_port
+     *      The port number of infiniband device to use.            
+     * \param rc
+     * 	The value to judge whether the IB connection is available, 0 for success; 1 for error.
+     */
+    Address(const std::string& str, uint16_t defaultPort, const char *dev_name, uint16_t ib_port, int &rc);
 
     /// Default constructor.
     Address();
@@ -144,6 +167,29 @@ class Address {
      * The remaining bytes of storage are always zeroed out.
      */
     socklen_t len;
+
+    /**
+     * Structure to exchange data which is needed to connect the QPs 
+     */
+    struct cm_con_data_t {
+	uint64_t addr; /* Buffer address */
+	uint32_t rkey; /* Remote key */
+	uint32_t qp_num; /* QP number */
+	uint16_t lid; /* LID of the IB port */
+	uint8_t gid[16]; /* gid */
+    }__attribute__ ((packed));
+
+    /**
+     * The parameters of RDMA.
+     */
+    struct ibv_device_attr device_attr; /* device attributes */
+    struct ibv_port_attr port_attr; /* IB port attributes */
+    struct cm_con_data_t remote_props; /* values to connect to remote side */
+    struct ibv_context *ib_ctx; /* device handle */
+    struct ibv_pd *pd; /* pd handle */
+    struct ibv_cq *cq;
+    struct ibv_qp *qp;
+    struct ibv_mr *mr;
 };
 
 } // namespace LogCabin::RPC

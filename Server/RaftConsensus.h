@@ -1468,7 +1468,7 @@ class RaftConsensus {
     /**
      * the device of RDMA
      */
-    std::string dev_name;
+    const char *dev_name;
 
     /**
      * the port of infiniband network

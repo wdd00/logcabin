@@ -173,7 +173,7 @@ Globals::init()
                    address.toString().c_str());
         }
         raft->serverAddresses = listenAddressesStr;
-        raft->dev_name = config.read<std::string>("dev_name", NULL);
+        raft->dev_name = config.read<std::string>("dev_name", NULL).c_str();
 	raft->ib_port = config.read<uint64_t>("ib_port", 1);
 	raft->gid_idx = config.read<uint64_t>("gid_idx", 0);
 	raft->init();

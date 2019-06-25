@@ -364,30 +364,30 @@ MessageSocket::writable()
                     bytesSent -= iov[i].iov_len;
                     iov[i].iov_len = 0;
                 }
-            }
-        }
+            }   
+        }       
 
-        struct msghdr msg;
-        memset(&msg, 0, sizeof(msg));
-        msg.msg_iov = iov;
-        msg.msg_iovlen = IOV_LEN;
-
-        // Do the actual send
-        ssize_t bytesSent = sendmsg(sendSocket.fd, &msg, flags);
-        if (bytesSent < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-                // Wasn't able to send, try again later.
-                bytesSent = 0;
-            } else if (errno == ECONNRESET || errno == EPIPE) {
-                // Connection closed; disconnect this end.
-                // This must be the last line to touch this object, in case
+	struct msghdr msg;
+	memset(&msg, 0, sizeof(msg));
+	msg.msg_iov = iov;
+	msg.msg_iovlen = IOV_LEN;
+	
+	// Do the actual send
+	ssize_t bytesSent = sendmsg(sendSocket.fd, &msg, flags);
+	if (bytesSent < 0) {
+	    if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+	        // Wasn't able to send, try again later.
+	        bytesSent = 0;
+	    } else if (errno == ECONNRESET || errno == EPIPE) {
+	        // Connection closed; disconnect this end.
+	        // This must be the last line to touch this object, in case
                 // handleDisconnect() deletes this object.
                 disconnect();
                 return;
             } else {
                 // Unexpected error.
-                PANIC("Error while writing to socket %d: %s",
-                      sendSocket.fd, strerror(errno));
+       	        PANIC("Error while writing to socket %d: %s",
+                sendSocket.fd, strerror(errno));
             }
         }
 

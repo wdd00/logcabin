@@ -153,8 +153,8 @@ class MessageSocket {
      */
     struct SendSocket : public Event::File {
       public:
-        SendSocket(int fd, MessageSocket& messageSocket);
-        ~SendSocket();
+	SendSocket(int fd, MessageSocket& messageSocket);
+	~SendSocket();
         void handleFileEvent(uint32_t events);
       private:
         MessageSocket& messageSocket;

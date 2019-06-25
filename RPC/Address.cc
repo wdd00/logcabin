@@ -119,13 +119,13 @@ Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_n
     // get device name in the system 
     dev_list = ibv_get_device_list(&num_devices);
     if (!dev_list) {
-        ERROR("failed to get IB devices list.");
+        PANIC("failed to get IB devices list.");
 	return;
     }
 
     // if there isn't any IB device in host 
     if (!num_devices) {
-        ERROR("found %d device(s).", num_devices);
+        PANIC("found %d device(s).", num_devices);
         if(dev_list) {
 		ibv_free_device_list(dev_list);
 		dev_list = NULL;
@@ -149,12 +149,12 @@ Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_n
 
     // if the device wasn't found in host 
     if (!ib_dev) {
-        ERROR("IB device %s wasn't found.", dev_name);
+        PANIC("IB device %s wasn't found.", dev_name);
     } else {
     	// get device handle
     	ib_ctx = ibv_open_device(ib_dev);
     	if (!ib_ctx) { 
-    	    ERROR("Failed to open device %s .", dev_name);
+    	    PANIC("Failed to open device %s .", dev_name);
 	}
     }
 
@@ -169,14 +169,14 @@ Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_n
 
     // query port properties 
     if (ibv_query_port(ib_ctx, ib_port, &port_attr)) {
-        ERROR("ibv_query_port on port %d failed.", ib_port);
+        PANIC("ibv_query_port on port %d failed.", ib_port);
 	return;
     }
 
     // allocate Protection Domain 
     pd = ibv_alloc_pd(ib_ctx);
     if (!pd) {
-        ERROR("ibv_alloc_pd failed.");
+        PANIC("ibv_alloc_pd failed.");
 	return;
     }
 
@@ -184,7 +184,7 @@ Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_n
     unsigned int cq_size = 1024;
     cq = ibv_create_cq(ib_ctx, cq_size, NULL, NULL, 0);
     if (!cq) {
-        ERROR("Failed to create CQ with %u entries.", cq_size);
+        PANIC("Failed to create CQ with %u entries.", cq_size);
 	ibv_dealloc_pd(pd);
 	return;
     }

@@ -31,6 +31,10 @@
 #include "Core/Random.h"
 #include "Core/StringUtil.h"
 #include "RPC/Address.h"
+//set the default size of completion queue is 1024
+#define CQ_LEN 1024
+//set the default size of message is 4096
+#define MSG_SIZE 4096
 
 namespace LogCabin {
 namespace RPC {
@@ -163,31 +167,96 @@ Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_n
     dev_list = NULL;
     ib_dev = NULL;
 
-    // if fail to open device
-    if(!ib_dev)
-	return;
-
     // query port properties 
     if (ibv_query_port(ib_ctx, ib_port, &port_attr)) {
+	if(ib_ctx)
+	    ibv_close_device(ib_ctx);
         PANIC("ibv_query_port on port %d failed.", ib_port);
-	return;
     }
 
     // allocate Protection Domain 
     pd = ibv_alloc_pd(ib_ctx);
     if (!pd) {
+	if(ib_ctx)
+	    ibv_close_device(ib_ctx);
         PANIC("ibv_alloc_pd failed.");
-	return;
     }
 
     // how many entries the Completion Queue should hold? what about default value is 1024? 
-    unsigned int cq_size = 1024;
+    unsigned int cq_size = CQ_LEN;
     cq = ibv_create_cq(ib_ctx, cq_size, NULL, NULL, 0);
     if (!cq) {
+	if(pd)
+	    ibv_dealloc_pd(pd);
+	if(ib_ctx)
+	    ibv_close_device(ib_ctx);
         PANIC("Failed to create CQ with %u entries.", cq_size);
-	ibv_dealloc_pd(pd);
-	return;
     }
+    
+    //Allocate the memory buffer that will hold the data
+    size_t size = MSG_SIZE;
+    char *buf = (char *)malloc(size);
+    if(!res->buf) {
+	if(cq)
+	    ibv_destroy_cq(cq);
+	if(pd)
+	    ibv_dealloc_pd(pd);
+	if(ib_ctx)
+	    ibv_close_device(ib_ctx);
+	PANIC("Failed to malloc %Zu bytes to memory buffer.", size);
+    }
+
+    memset(buf, 0, size);
+
+    //register the memory buffer
+    int mr_flags = IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_WRITE;
+    struct ibv_mr *mr = ibv_reg_mr(pd, buf, size, mr_flags);
+    if(!mr) {
+	if(buf)
+	    free(buf);
+	if(cq)
+	    ibv_destroy_cq(cq);
+	if(pd)
+	    ibv_dealloc_pd(pd);
+	if(ib_ctx)
+	    ibv_close_device(ib_ctx);
+	PANIC("MR was registered with addr=%p, lkey=0x%x, rkey=%x, flags=%x", buf, mr->lkey, mr->rkey, mr_flags);
+    }
+
+    //create the Queue Pair
+    struct ibv_qp_init_attr qp_init_attr;
+    memset(&qp_init_attr, 0, sizeof(qp_init_attr));
+    qp_init_attr.qp_type = IBV_QPT_RC;
+    //sq_sig_all is 0 when the user must decide whether to generate a Work Completion for 
+    //successful completions or not; otherwise, all work requests that will be submitted 
+    //to the send Queue will always generate a Work Completion.
+    qp_init_attr.sq_sig_all = 1;
+    qp_init_attr.send_cq = cq;
+    qp_init_attr.recv_cq = cq;
+    //the maximum number of outstanding Work Requests that can be posted to the Send Queue
+    //(Recv Queue)in that Queue Pair.
+    qp_init_attr.cap.max_send_wr = 1024;
+    qp_init_attr.cap.max_recv_wr = 1024;
+    //the maximum number of scatter/gather elements in any Work Request that can be posted 
+    //to the Send Queue (Recv Queue) in that Queue Pair.
+    qp_init_attr.cap.max_send_sge = 1024;
+    qp_init_attr.cap.max_recv_sge = 1024;
+    struct ibv_qp *qp = ibv_create_qp(pd, &pd_init_attr);
+    if(!qp) {
+	if(mr)
+	    ibv_dereg_mr(mr);
+	if(buf)
+	    free(buf);
+	if(cq)
+	    ibv_destroy_cq(cq);
+	if(pd)
+	    ibv_dealloc_pd(pd);
+	if(ib_ctx)
+	    ibv_close_device(ib_ctx);
+	PANIC("Failed to create QP");
+    }
+    NOTICE("QP was created, QP number=0x%x", qp->qp_num);
+
 }
 
 Address::Address()

@@ -1,5 +1,7 @@
 Import('env', 'object_files')
 
+libs = ["ibverbs"]
+
 src = [
     "Address.cc",
     "ClientRPC.cc",
@@ -14,3 +16,4 @@ src = [
     "ThreadDispatchService.cc",
 ]
 object_files['RPC'] = env.StaticObject(src)
+

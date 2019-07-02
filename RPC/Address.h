@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 #include <infiniband/verbs.h>
+#include <byteswap.h>
 
 #include "Core/Time.h"
 
@@ -76,7 +77,7 @@ class Address {
      * \param rc
      * 	The value to judge whether the IB connection is available, 0 for success; 1 for error.
      */
-    Address(const std::string& str, uint16_t defaultPort, const char *dev_name, uint16_t ib_port, int &rc);
+    Address(const std::string& str, uint16_t defaultPort, const char *dev_name, uint16_t ib_port, int gid_idx);
 
     /// Default constructor.
     Address();
@@ -86,6 +87,18 @@ class Address {
 
     /// Assignment.
     Address& operator=(const Address& other);
+
+    /**
+     * Structure to exchange data which is needed to connect the QPs 
+     */
+    struct cm_con_data_t {
+        uint64_t addr; /* Buffer address */
+        uint32_t rkey; /* Remote key */
+        uint32_t qp_num; /* QP number */
+        uint16_t lid; /* LID of the IB port */
+        uint8_t gid[16]; /* gid */
+        cm_con_data_t& operator = (const cm_con_data_t& other);
+    }__attribute__ ((packed));
 
     /**
      * Return true if the sockaddr returned by getSockAddr() is valid.
@@ -138,11 +151,36 @@ class Address {
      */
     void refresh(TimePoint timeout);
 
-  private:
+    /**
+     * Connect the QP. Transition sender side to RTS.
+     * \Returns
+     * 	    0 on success, error code on failure.
+     */
+    int connect_qp(int fd, cm_con_data_t& remote_props) const; 
 
     /**
-     * The host name(s) or numeric address(es) as passed into the constructor.
+     * Sync data across a socket. The indicated local data will be sent to the 
+     * remote. It will then wait for the remote to send its data back. It is 
+     * assumed that the two sides are in sync and call this function in the 
+     * proper order. Chaos will ensue if they are not.
+     * Also note this is a blocking function and will wait for the full data 
+     * to be received from the remote.
+     * \param fd
+     *     socket to transfer data on.
+     * \param xfer_size
+     *     the size of data to transfer.
+     * \param local_data
+     *     pointer to data to be sent to remote.
+     * \param remote_data
+     *     pointer to buffer to receive remote data.
      */
+    int sock_sync_data(int fd, int xfer_size, char *local_data, char *remote_data) const;
+
+  private:
+
+     /**
+      * The host name(s) or numeric address(es) as passed into the constructor.
+      */
     std::string originalString;
 
     /**
@@ -169,27 +207,48 @@ class Address {
     socklen_t len;
 
     /**
-     * Structure to exchange data which is needed to connect the QPs 
+     * the gid of the infiniband device.
      */
-    struct cm_con_data_t {
-	uint64_t addr; /* Buffer address */
-	uint32_t rkey; /* Remote key */
-	uint32_t qp_num; /* QP number */
-	uint16_t lid; /* LID of the IB port */
-	uint8_t gid[16]; /* gid */
-    }__attribute__ ((packed));
+    int gid_idx;
+
+    int ib_port;
 
     /**
      * The parameters of RDMA.
      */
     struct ibv_device_attr device_attr; /* device attributes */
     struct ibv_port_attr port_attr; /* IB port attributes */
-    struct cm_con_data_t remote_props; /* values to connect to remote side */
     struct ibv_context *ib_ctx; /* device handle */
     struct ibv_pd *pd; /* pd handle */
     struct ibv_cq *cq;
     struct ibv_qp *qp;
     struct ibv_mr *mr;
+    char *buf;
+
+    #if __BYTE_ORDER == __LITTLE_ENDIAN
+    static inline uint64_t htonll(uint64_t x) { return bswap_64(x);}
+    static inline uint64_t ntohll(uint64_t x) { return bswap_64(x);}
+    #elif __BYTE_ORDER == __BIG_ENDIAN
+    static inline uint64_t htonll(uint64_t x) { return x;}
+    static inline uint64_t ntohll(uint64_t x) { return x;}
+    #else
+    #error __BYTE_ORDER is neither __LITTLE_ENDIAN nor __BIG_ENDIAN
+    #endif
+
+    /**
+     * Transition a QP from RESET to INIT state.
+     */
+    int modify_qp_to_init(struct ibv_qp *qp) const;
+
+    /**
+     * Transition a QP from INIT to RTR state, using the specified QP number.
+     */
+    int modify_qp_to_rtr(struct ibv_qp *qp, uint32_t remote_qpn, uint16_t dlid, uint8_t *dgid) const;
+
+    /**
+     * Transition a QP from the RTR yo RTS state,
+     */
+    int modify_qp_to_rts(struct ibv_qp *qp) const;   
 };
 
 } // namespace LogCabin::RPC

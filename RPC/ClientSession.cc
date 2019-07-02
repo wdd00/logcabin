@@ -326,9 +326,17 @@ ClientSession::ClientSession(Event::Loop& eventLoop,
         close(fd);
         return;
     }
+    
+    // connect the QPs
+    Address::cm_con_data_t remote_props;
+    if(address.connect_qp(fd, remote_props)) {
+	PANIC("Failed to connect QPs");
+    }
 
     messageSocket.reset(new MessageSocket(
         messageSocketHandler, eventLoop, fd, maxMessageLength));
+
+//    messageSocket.reset(new MessageSocket( messageSocketHandler, eventLoop, fd, maxMessageLength, remote_props, target));
 }
 
 std::shared_ptr<ClientSession>

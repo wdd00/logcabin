@@ -1,7 +1,5 @@
 Import('env', 'object_files')
 
-libs = ["ibverbs"]
-
 src = [
     "Address.cc",
     "ClientRPC.cc",

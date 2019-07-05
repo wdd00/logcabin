@@ -187,6 +187,26 @@ MessageSocket::MessageSocket(Handler& handler,
 {
 }
 
+MessageSocket::MessageSocket(Handler& handler,
+                             Event::Loop& eventLoop, int fd,
+                             uint32_t maxMessageLength,
+			     const Address &address, Address::cm_con_data_t &remote_props, char *buf)
+    : maxMessageLength(maxMessageLength)
+    , address(address)
+    , remote_props(remote_props)
+    , buf(buf)
+    , handler(handler)
+    , eventLoop(eventLoop)
+    , inbound()
+    , outboundQueueMutex()
+    , outboundQueue()
+    , receiveSocket(dupOrPanic(fd), *this)
+    , sendSocket(fd, *this)
+    , receiveSocketMonitor(eventLoop, receiveSocket, EPOLLIN)
+    , sendSocketMonitor(eventLoop, sendSocket, 0)
+{
+}
+
 MessageSocket::~MessageSocket()
 {
 }
@@ -359,14 +379,46 @@ MessageSocket::writable()
                                    bytesSent);
                 if (bytesSent < iov[i].iov_len) {
                     iov[i].iov_len -= bytesSent;
-                    break;
-                } else {
+               	    break;
+		} else {
                     bytesSent -= iov[i].iov_len;
                     iov[i].iov_len = 0;
                 }
             }   
         }       
-
+	
+	{ // Copy the message to be sent to the buffer, if it is to large, divide it.
+	    size_t bytesToSent = 0;
+	    uint32_t i = 0;
+	    while(iov[IOV_LEN - 1].iov_len)
+       	    {
+		if(iov[i].iov_len <= MSG_SIZE -bytesToSent) {
+		    memcpy(buf, static_cast<char *>(iov[i].iov_base), iov[i].iov_len);
+		    bytesToSent += iov[i].iov_len;
+		    ++i;    
+		} else {
+		    memcpy(buf, static_cast<char *>(iov[i].iov_base), MSG_SIZE - bytesToSent);
+		    iov[i].iov_base = (static_cast<char *>(iov[i].iov_base) + MSG_SIZE - bytesToSent);
+		    iov[i].iov_len -= MSG_SIZE - bytesToSent;
+		    if(address.post_send(buf, IBV_WR_SEND, remote_props)) {
+			ERROR("Failed to post sr.");
+			if(address.resources_destroy(buf)) {
+			    ERROR("Failed to destroy resources.");
+			}
+			abort();
+		    }
+		    if(address.poll_completion()) {
+			ERROR("Poll completion failed.");
+			if(address.resources_destroy(buf)) {
+			    ERROR("Failed to destroy resources.");
+			}
+			abort();
+		    }
+		    bytesToSent = 0;
+		}
+	    }
+	}
+	
 	struct msghdr msg;
 	memset(&msg, 0, sizeof(msg));
 	msg.msg_iov = iov;

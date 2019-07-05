@@ -277,6 +277,12 @@ class ClientSession {
     const Address address;
 
     /**
+     * The buffer to storge the message to be sent. 
+     * Be public, so that MessageSocket::writable can modify/fill the content.
+     */
+    char *buf;
+
+    /**
      * Receives events from #messageSocket.
      */
     MessageSocketHandler messageSocketHandler;

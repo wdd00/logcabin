@@ -331,7 +331,8 @@ Peer::getSession(std::unique_lock<Mutex>& lockGuard)
         // release lock for concurrency
         Core::MutexUnlock<Mutex> unlockGuard(lockGuard);
         RPC::Address target(addresses, Protocol::Common::DEFAULT_PORT);
-        target.refresh(timeout);
+        //RPC::Address target(addresses, Protocol::Common::DEFAULT_PORT, dev_name, ib_port, gid_idx, buf);
+	target.refresh(timeout);
         Client::SessionManager::ServerId peerId(serverId);
         session = consensus.sessionManager.createSession(
             target,

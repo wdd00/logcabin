@@ -25,6 +25,11 @@
 
 #include "Core/Time.h"
 
+//set the default size of completion queue is 1024
+#define CQ_LEN 1024
+//set the default size of message is 4096
+#define MSG_SIZE 4096
+
 namespace LogCabin {
 namespace RPC {
 
@@ -77,7 +82,7 @@ class Address {
      * \param rc
      * 	The value to judge whether the IB connection is available, 0 for success; 1 for error.
      */
-    Address(const std::string& str, uint16_t defaultPort, const char *dev_name, uint16_t ib_port, int gid_idx);
+    Address(const std::string& str, uint16_t defaultPort, const char *dev_name, uint16_t ib_port, int gid_idx, char *buf);
 
     /// Default constructor.
     Address();
@@ -156,7 +161,7 @@ class Address {
      * \Returns
      * 	    0 on success, error code on failure.
      */
-    int connect_qp(int fd, cm_con_data_t& remote_props) const; 
+    int connect_qp(int fd, cm_con_data_t& remote_props, char *buf) const; 
 
     /**
      * Sync data across a socket. The indicated local data will be sent to the 
@@ -175,6 +180,33 @@ class Address {
      *     pointer to buffer to receive remote data.
      */
     int sock_sync_data(int fd, int xfer_size, char *local_data, char *remote_data) const;
+
+    /**
+     * This function will create and post a send work request.
+     * \param buf
+     * 	   the buffer related with the registered memory region and store the message to be sent.
+     * \param opcode
+     * 	   IBV_WR_SEND, IBV_WR_RDMA_READ or IBV_WR_RDMA_WRITE
+     * \param remote_props
+     *     values to connecto to remote side
+     */
+    int post_send(char *buf, int opcode, cm_con_data_t& remote_props) const; 
+
+    /**
+     * Poll the compltion queue for a single event. This function will continue to poll the queue until MAX_POLL_CQ_TIMEOUT milliseconds have passed.
+     * Returns 
+     *     0 on succuss, 1 on failure.
+     */
+    int poll_completion() const;  
+
+    /**
+     * Cleanup and deallocate all resources used.
+     * \param buf
+     *     the buffer related with the registered memory region.
+     * Returns 
+     *     0 on success, 1 on failure.
+     */
+    int resources_destroy(char *buf) const; 
 
   private:
 
@@ -223,7 +255,6 @@ class Address {
     struct ibv_cq *cq;
     struct ibv_qp *qp;
     struct ibv_mr *mr;
-    char *buf;
 
     #if __BYTE_ORDER == __LITTLE_ENDIAN
     static inline uint64_t htonll(uint64_t x) { return bswap_64(x);}

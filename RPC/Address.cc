@@ -32,10 +32,6 @@
 #include "Core/Random.h"
 #include "Core/StringUtil.h"
 #include "RPC/Address.h"
-//set the default size of completion queue is 1024
-#define CQ_LEN 1024
-//set the default size of message is 4096
-#define MSG_SIZE 4096
 
 namespace LogCabin {
 namespace RPC {
@@ -76,7 +72,7 @@ Address::Address(const std::string& str, uint16_t defaultPort)
     }
 }
 
-Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_name, uint16_t ib_port, int gid_idx)
+Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_name, uint16_t ib_port, int gid_idx, char *buf)
     : originalString(str)
     , hosts()
     , storage()
@@ -86,7 +82,6 @@ Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_n
     , pd()
     , gid_idx(gid_idx)
     , ib_port(ib_port)
-    , buf()
 {
     struct ibv_device **dev_list = NULL;
     struct ibv_device *ib_dev = NULL;
@@ -295,7 +290,6 @@ Address::operator=(const Address& other)
     cq = other.cq;
     qp = other.qp;
     mr = other.mr;
-    memcpy(buf, other.buf, sizeof(buf));
     return *this;
 }
 
@@ -424,7 +418,7 @@ Address::refresh(TimePoint timeout)
     VERBOSE("Result: %s", toString().c_str());
 }
 
-int Address::connect_qp(int fd, cm_con_data_t& remote_props) const
+int Address::connect_qp(int fd, cm_con_data_t& remote_props, char *buf) const
 {
 //    struct cm_con_data_t local_con_data;
   //  struct cm_con_date_t remote_con_data;
@@ -499,6 +493,59 @@ int Address::connect_qp(int fd, cm_con_data_t& remote_props) const
     return rc;
 }
 
+int Address::post_send(char *buf, int opcode, cm_con_data_t &remote_props) const
+{
+/*    struct ibv_send_wr sr;
+    struct ibv_sge sge;
+    struct ibv_send_wr *bad_wr = NULL;
+
+    //prepare the scatter/gather entry
+    memset(&sge, 0, sizeof(sge));
+
+    sge.addr = static_cast<uintptr_t>buf;
+    sge.length = MSG_SIZE;
+    sge.lkey = mr->lkey;
+
+    // prepare the send work request.
+    memset(&sr, 0, sizeof(sr));
+
+    sr.next = NULL;
+    sr.wr_id = 0;
+    sr.sg_list = &sge;
+    sr.num_sge = 1;
+    sr.opcode = opcode;
+    sr.send_flags = IBV_SEND_SIGNALED;
+
+    if(opcode != IBV_WR_SEND) {
+	sr.wr.rdma.remote_addr = remote_props.addr;
+	sr.wr.rdma.rkey = remote_props.rkey;
+    }
+
+    // There is a Receive Request in the responder side, so we won't get any into RNR flow. 
+    int rc = ibv_post_send(qp, &sr, &bad_wr);
+    if(rc)
+	ERROR("Failed to post SR.");
+    else {
+	switch(opcode)
+	{
+	    case IBV_WR_SEND:
+		NOTICE("Send Request was posted.");
+		break;
+	    case IBV_WR_RDMA_READ:
+		NOTICE("RDMA Read Request was posted.");
+		break;
+	    case IBV_WR_RDMA_WRITE:
+		NOTICE("RDMA Write Request was posted.");
+		break;
+	    default:
+		NOTICE("Unknown Request was posted.");
+		break;
+	}
+    }
+    return rc;
+*/  return 0;
+}
+
 Address::cm_con_data_t& Address::cm_con_data_t::operator = (const Address::cm_con_data_t& other)
 {
     addr = other.addr;
@@ -528,6 +575,82 @@ int Address::sock_sync_data(int fd, int xfer_size, char *local_data, char *remot
 
     return rc;
 
+}
+
+int Address::poll_completion() const
+{
+/*    struct ibv_wc wc;
+    struct timeval cur_time;
+    int poll_result;
+
+    // Poll the completion for a while before giving up of doing it.
+    gettimeofday(&cur_time, NULL);
+    unsigned long start_time_msec = (cur_time.tv_sec * 1000) + (cur_time.tv_usec / 1000);
+    do {
+	poll_result = ibv_poll_cq(cq, 1, &wc);
+	gettimeofday(&cur_time, NULL);
+	cur_time_msec = (cur_time.tv_sec * 1000) + (cur_time.tv_usec / 1000);
+    } while((poll_result == 0) && ((cur_time_msec - start_time_msec) < MAX_POLL_CQ_TIMEOUT));
+
+    if(poll_result < 0) {
+	// poll CQ failed.
+	ERROR("Poll CQ failed.");
+	return 1;
+    } else if(poll_result == 0) {
+	// the CQ is empty.
+	ERROR("Completion wasn't found in the CQ after timeout.");
+	return 1;
+    } else {
+	// CQE found.
+	NOTICE("Completion was found in CQ with status 0x%x.", wc.status);
+	// Check the completion status (here we don't care about the completion opcode.)
+	if(wc.status != IBV_WC_SUCCESS) {
+	    ERROR("Got bad completionb with status:0x%x, vendor syndrome: 0x%x.", wc.status, wc.vendor_err);
+	    return rc;
+	}
+	return 0;
+    }
+*/  return 0;
+}
+
+int Address::resources_destroy(char *buf) const
+{
+/*    int rc = 0;
+    if(qp)
+	if(ibv_destroy_qp(qp)) {
+	    ERROR("Failed to destroy QP.");
+	    rc = 1;
+	}
+
+    if(mr)
+	if(ibv_dereg_mr(mr)) {
+	    ERROR("Failed to deregister MR.");
+	    rc = 1;
+	}
+
+    if(buf)
+	free(buf);
+
+    if(cq)
+	if(ibv_destroy_cq(cq)) {
+	    ERROR("Failed to destroy CQ.");
+	    rc = 1;
+	}
+
+    if(pd)
+	if(ibv_dealloc_pd(pd)) {
+	    ERROR("Failed to deallocate PD.")
+	    rc = 1;
+	}
+
+    if(ib_ctx)
+	if(ibv_close_device(ib_ctx)) {
+	    ERROR("Failed to close device context.");
+	    rc = 1;
+	}
+
+    return rc;
+*/  return 0;
 }
 
 int Address::modify_qp_to_init(struct ibv_qp *qp) const

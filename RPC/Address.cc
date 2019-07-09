@@ -23,6 +23,7 @@
 #include <arpa/inet.h>
 #include <infiniband/verbs.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include <sstream>
 #include <vector>
@@ -493,16 +494,16 @@ int Address::connect_qp(int fd, cm_con_data_t& remote_props, char *buf) const
     return rc;
 }
 
-int Address::post_send(char *buf, int opcode, cm_con_data_t &remote_props) const
+int Address::post_send(char *buf, ibv_wr_opcode opcode, cm_con_data_t &remote_props) const
 {
-/*    struct ibv_send_wr sr;
+    struct ibv_send_wr sr;
     struct ibv_sge sge;
     struct ibv_send_wr *bad_wr = NULL;
 
     //prepare the scatter/gather entry
     memset(&sge, 0, sizeof(sge));
 
-    sge.addr = static_cast<uintptr_t>buf;
+    sge.addr = reinterpret_cast<uintptr_t>(buf);
     sge.length = MSG_SIZE;
     sge.lkey = mr->lkey;
 
@@ -543,7 +544,6 @@ int Address::post_send(char *buf, int opcode, cm_con_data_t &remote_props) const
 	}
     }
     return rc;
-*/  return 0;
 }
 
 Address::cm_con_data_t& Address::cm_con_data_t::operator = (const Address::cm_con_data_t& other)
@@ -579,13 +579,14 @@ int Address::sock_sync_data(int fd, int xfer_size, char *local_data, char *remot
 
 int Address::poll_completion() const
 {
-/*    struct ibv_wc wc;
+    struct ibv_wc wc;
     struct timeval cur_time;
     int poll_result;
 
     // Poll the completion for a while before giving up of doing it.
     gettimeofday(&cur_time, NULL);
     unsigned long start_time_msec = (cur_time.tv_sec * 1000) + (cur_time.tv_usec / 1000);
+    unsigned long cur_time_msec;
     do {
 	poll_result = ibv_poll_cq(cq, 1, &wc);
 	gettimeofday(&cur_time, NULL);
@@ -606,16 +607,15 @@ int Address::poll_completion() const
 	// Check the completion status (here we don't care about the completion opcode.)
 	if(wc.status != IBV_WC_SUCCESS) {
 	    ERROR("Got bad completionb with status:0x%x, vendor syndrome: 0x%x.", wc.status, wc.vendor_err);
-	    return rc;
+	    return 1;
 	}
 	return 0;
     }
-*/  return 0;
 }
 
 int Address::resources_destroy(char *buf) const
 {
-/*    int rc = 0;
+    int rc = 0;
     if(qp)
 	if(ibv_destroy_qp(qp)) {
 	    ERROR("Failed to destroy QP.");
@@ -639,7 +639,7 @@ int Address::resources_destroy(char *buf) const
 
     if(pd)
 	if(ibv_dealloc_pd(pd)) {
-	    ERROR("Failed to deallocate PD.")
+	    ERROR("Failed to deallocate PD.");
 	    rc = 1;
 	}
 
@@ -650,7 +650,6 @@ int Address::resources_destroy(char *buf) const
 	}
 
     return rc;
-*/  return 0;
 }
 
 int Address::modify_qp_to_init(struct ibv_qp *qp) const

@@ -29,6 +29,8 @@
 #define CQ_LEN 1024
 //set the default size of message is 4096
 #define MSG_SIZE 4096
+// poll CQ timeout in millisec (2 seconds)
+#define MAX_POLL_CQ_TIMEOUT 2000
 
 namespace LogCabin {
 namespace RPC {
@@ -190,7 +192,14 @@ class Address {
      * \param remote_props
      *     values to connecto to remote side
      */
-    int post_send(char *buf, int opcode, cm_con_data_t& remote_props) const; 
+    int post_send(char *buf, ibv_wr_opcode opcode, cm_con_data_t& remote_props) const; 
+
+    /**
+     * This function will block and post a receive work request.
+     * \param buf
+     *     the buffer related with the registered memory region and store the message to be sent.
+     */
+    //int post_receive(char *buf);	 
 
     /**
      * Poll the compltion queue for a single event. This function will continue to poll the queue until MAX_POLL_CQ_TIMEOUT milliseconds have passed.

@@ -271,6 +271,7 @@ MessageSocket::readable()
             inbound.bytesRead += size_t(bytesRead);
             if (inbound.bytesRead < sizeof(Header))
                 return;
+	    // for RDMA connection, receiving header
             // Transition to receiving data
             inbound.header.fromBigEndian();
             if (inbound.header.fixed != 0xdaf4) {

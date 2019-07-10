@@ -33,6 +33,7 @@
 #include "Core/Random.h"
 #include "Core/StringUtil.h"
 #include "RPC/Address.h"
+#include "Protocol/Common.h"
 
 namespace LogCabin {
 namespace RPC {
@@ -193,8 +194,7 @@ Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_n
     }
     
     //Allocate the memory buffer that will hold the data
-    size_t size = MSG_SIZE;
-    buf = (char *)malloc(size);
+    buf = (char *)malloc(Protocol::Common::MAX_MESSAGE_LENGTH);
     if(!buf) {
 	if(cq)
 	    ibv_destroy_cq(cq);
@@ -202,14 +202,14 @@ Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_n
 	    ibv_dealloc_pd(pd);
 	if(ib_ctx)
 	    ibv_close_device(ib_ctx);
-	PANIC("Failed to malloc %Zu bytes to memory buffer.", size);
+	PANIC("Failed to malloc %Zu bytes to memory buffer.", Protocol::Common::MAX_MESSAGE_LENGTH);
     }
 
-    memset(buf, 0, size);
+    memset(buf, 0, Protocol::Common::MAX_MESSAGE_LENGTH);
 
     //register the memory buffer
     int mr_flags = IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_WRITE;
-    mr = ibv_reg_mr(pd, buf, size, mr_flags);
+    mr = ibv_reg_mr(pd, buf, Protocol::Common::MAX_MESSAGE_LENGTH, mr_flags);
     if(!mr) {
 	if(buf)
 	    free(buf);
@@ -421,9 +421,6 @@ Address::refresh(TimePoint timeout)
 
 int Address::connect_qp(int fd, cm_con_data_t& remote_props, char *buf) const
 {
-//    struct cm_con_data_t local_con_data;
-  //  struct cm_con_date_t remote_con_data;
-    //struct cm_con_data_t tmp_con_data;
     cm_con_data_t local_con_data;
     cm_con_data_t remote_con_data;
     cm_con_data_t tmp_con_data;
@@ -494,7 +491,7 @@ int Address::connect_qp(int fd, cm_con_data_t& remote_props, char *buf) const
     return rc;
 }
 
-int Address::post_send(char *buf, ibv_wr_opcode opcode, cm_con_data_t &remote_props) const
+int Address::post_send(char *buf, ibv_wr_opcode opcode, cm_con_data_t &remote_props, size_t msg_size) const
 {
     struct ibv_send_wr sr;
     struct ibv_sge sge;
@@ -503,8 +500,11 @@ int Address::post_send(char *buf, ibv_wr_opcode opcode, cm_con_data_t &remote_pr
     //prepare the scatter/gather entry
     memset(&sge, 0, sizeof(sge));
 
+    //start address of the local memory
     sge.addr = reinterpret_cast<uintptr_t>(buf);
-    sge.length = MSG_SIZE;
+    //length of the buffer
+    sge.length = msg_size;
+    // key of the local memory region.
     sge.lkey = mr->lkey;
 
     // prepare the send work request.

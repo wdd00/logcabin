@@ -27,8 +27,6 @@
 
 //set the default size of completion queue is 1024
 #define CQ_LEN 1024
-//set the default size of message is 4096
-#define MSG_SIZE 4096
 // poll CQ timeout in millisec (2 seconds)
 #define MAX_POLL_CQ_TIMEOUT 2000
 
@@ -191,8 +189,10 @@ class Address {
      * 	   IBV_WR_SEND, IBV_WR_RDMA_READ or IBV_WR_RDMA_WRITE
      * \param remote_props
      *     values to connecto to remote side
+     * \param msg_size
+     *     the total size of header and contents to be sent.
      */
-    int post_send(char *buf, ibv_wr_opcode opcode, cm_con_data_t& remote_props) const; 
+    int post_send(char *buf, ibv_wr_opcode opcode, cm_con_data_t& remote_props, size_t msg_size) const; 
 
     /**
      * This function will block and post a receive work request.

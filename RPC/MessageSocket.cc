@@ -364,7 +364,31 @@ MessageSocket::writable()
                 flags |= MSG_MORE;
         }
 
-        // Use an iovec to send everything in one kernel call: one iov for the
+	size_t bytesToSent = 0;
+	if(outbound.bytesSent < sizeof(Header)) {
+	    bytesToSent = sizeof(Header) - outbound.bytesSent;
+	    void *tmp = &outbound.header;
+	    memcpy(buf, static_cast<char *>(static_cast<void *>(&outbound.header)) + outbound.bytesSent, bytesToSent);
+	    outbound.bytesSent = sizeof(Header);
+	}
+	memcpy(buf + bytesToSent, static_cast<char *>(outbound.message.getData()) + outbound.bytesSent - sizeof(Header), outbound.message.getLength() + sizeof(Header) - outbound.bytesSent);	
+	bytesToSent += outbound.message.getLength() + sizeof(Header) - outbound.bytesSent;
+
+	if(address.post_send(buf, IBV_WR_SEND, remote_props, bytesToSent)) {
+	    ERROR(" Failed to send SR.");
+	    if(address.resources_destroy(buf))
+		ERROR(" Failed to destroy RDMA resources.");
+	    abort();
+	}
+
+	if(address.poll_completion()) {
+	    ERROR(" Failed to poll completion.");
+	    if(address.resources_destroy(buf))
+		ERROR(" Failed to destroy RDMA resources.");
+	    abort();
+	}
+
+/*        // Use an iovec to send everything in one kernel call: one iov for the
         // header, another for the payload.
         enum { IOV_LEN = 2 };
         struct iovec iov[IOV_LEN];
@@ -452,7 +476,7 @@ MessageSocket::writable()
             std::lock_guard<Core::Mutex> lockGuard(outboundQueueMutex);
             outboundQueue.emplace_front(std::move(outbound));
             return;
-        }
+        }*/
     }
 }
 

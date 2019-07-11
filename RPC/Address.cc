@@ -546,6 +546,40 @@ int Address::post_send(char *buf, ibv_wr_opcode opcode, cm_con_data_t &remote_pr
     return rc;
 }
 
+int Address::post_receive(char *buf, size_t msg_size) const
+{
+     struct ibv_recv_wr rr;
+     struct ibv_sge sge;
+     struct ibv_recv_wr *bad_wr;
+     
+     // Prepare the scatter/gather entry
+    memset(&sge, 0, sizeof(sge));
+
+    //start address of the local memory
+    sge.addr = reinterpret_cast<uintptr_t>(buf);
+    //length of the buffer
+    sge.length = msg_size;
+    // key of the local memory region.
+    sge.lkey = mr->lkey;
+
+    // prepare the receive work request.
+    memset(&rr, 0, sizeof(rr));
+
+    rr.next = NULL;
+    rr.wr_id = 0;
+    rr.sg_list = &sge;
+    rr.num_sge = 1;
+   
+    // Post the receive request to the RQ.
+    int rc = ibv_post_recv(qp, &rr, &bad_wr);
+    if(rc)	
+	ERROR(" Failed to post RR.");
+    else
+	NOTICE(" Receive Request was posted.");
+
+    return rc;
+}
+
 Address::cm_con_data_t& Address::cm_con_data_t::operator = (const Address::cm_con_data_t& other)
 {
     addr = other.addr;

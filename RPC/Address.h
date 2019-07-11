@@ -197,9 +197,11 @@ class Address {
     /**
      * This function will block and post a receive work request.
      * \param buf
-     *     the buffer related with the registered memory region and store the message to be sent.
+     *     the buffer related with the registered memory region and store the message to be received.
+     * \param msg_size
+     *     the size of message to be sent.
      */
-    //int post_receive(char *buf);	 
+    int post_receive(char *buf, size_t msg_size) const;	 
 
     /**
      * Poll the compltion queue for a single event. This function will continue to poll the queue until MAX_POLL_CQ_TIMEOUT milliseconds have passed.

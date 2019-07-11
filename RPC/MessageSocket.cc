@@ -259,7 +259,16 @@ MessageSocket::readable()
 {
     // Try to read data from the kernel until there is no more left.
     while (true) {
-        if (inbound.bytesRead < sizeof(Header)) {
+	// Firstly, receive header via RDMA, and save in the inbound struct.
+	if(address.post_receive(buf, sizeof(Header))) {
+	     ERROR(" Failed to receive header.");
+	     if(address.resources_destroy(buf)) 
+		ERROR(" Failed to destroy RDMA resources.");
+	     abort();
+	}
+	memcpy(reinterpret_cast<char *>(&inbound.header), buf, sizeof(Header));
+	
+        /*if (inbound.bytesRead < sizeof(Header)) {
             // Receiving header
             ssize_t bytesRead = read(
                 reinterpret_cast<char*>(&inbound.header) + inbound.bytesRead,
@@ -271,41 +280,39 @@ MessageSocket::readable()
             inbound.bytesRead += size_t(bytesRead);
             if (inbound.bytesRead < sizeof(Header))
                 return;
-	    // for RDMA connection, receiving header
-            // Transition to receiving data
-            inbound.header.fromBigEndian();
-            if (inbound.header.fixed != 0xdaf4) {
-                WARNING("Disconnecting since message doesn't start with magic "
-                        "0xdaf4 (first two bytes are 0x%02x)",
-                        inbound.header.fixed);
-                disconnect();
-                return;
-            }
-            if (inbound.header.version != 1) {
-                WARNING("Disconnecting since message uses version %u, but "
-                        "this code only understands version 1",
-                        inbound.header.version);
-                disconnect();
-                return;
-            }
-            if (inbound.header.payloadLength > maxMessageLength) {
-                WARNING("Disconnecting since message is too long to receive "
-                        "(message is %u bytes, limit is %u bytes)",
-                        inbound.header.payloadLength, maxMessageLength);
-                disconnect();
-                return;
-            }
-            inbound.message.setData(new char[inbound.header.payloadLength],
-                                    inbound.header.payloadLength,
-                                    Core::Buffer::deleteArrayFn<char>);
+          */  // Transition to receiving data
+	inbound.header.fromBigEndian();
+        if (inbound.header.fixed != 0xdaf4) {
+            WARNING("Disconnecting since message doesn't start with magic "
+                    "0xdaf4 (first two bytes are 0x%02x)",
+                    inbound.header.fixed);
+            disconnect();
+            return;
         }
+        if (inbound.header.version != 1) {
+            WARNING("Disconnecting since message uses version %u, but "
+                    "this code only understands version 1",
+                    inbound.header.version);
+            disconnect();
+            return;
+        }
+        if (inbound.header.payloadLength > maxMessageLength) {
+            WARNING("Disconnecting since message is too long to receive "
+                   "(message is %u bytes, limit is %u bytes)",
+                   inbound.header.payloadLength, maxMessageLength);
+            disconnect();
+            return;
+        }
+        inbound.message.setData(new char[inbound.header.payloadLength],
+                                inbound.header.payloadLength,
+                                Core::Buffer::deleteArrayFn<char>);
         // Don't use 'else' here; we want to check this branch for two reasons:
         // First, if there is a header with a length of 0, the socket won't be
         // readable, but we still need to process the message. Second, most of
         // the time the header will arrive with at least some data. It makes
         // sense to go ahead and try a non-blocking read, rather than going
         // back to the event loop.
-        if (inbound.bytesRead >= sizeof(Header)) {
+        /*if (inbound.bytesRead >= sizeof(Header)) {
             // Receiving data
             size_t payloadBytesRead = inbound.bytesRead - sizeof(Header);
             ssize_t bytesRead = read(
@@ -320,12 +327,21 @@ MessageSocket::readable()
             if (inbound.bytesRead < (sizeof(Header) +
                                      inbound.header.payloadLength)) {
                 return;
-            }
-            handler.handleReceivedMessage(inbound.header.messageId,
-                                          std::move(inbound.message));
+            }*/
+	 // Then, receive message via RDMA, and save in the inbound struct.
+	 if(address.post_receive(buf, inbound.header.payloadLength)) {
+	     ERROR(" Failed to receive message.");
+	     if(address.resources_destroy(buf))
+	         ERROR(" Failed to destroy RDMA resources.");
+	     abort();
+	 }
+	 memcpy(static_cast<char *>(inbound.message.getData()), buf, inbound.header.payloadLength);
+
+         handler.handleReceivedMessage(inbound.header.messageId,
+                                      std::move(inbound.message));
             // Transition to receiving header
-            inbound.bytesRead = 0;
-        }
+         //   inbound.bytesRead = 0;
+        //}
     }
 }
 
@@ -364,23 +380,23 @@ MessageSocket::writable()
                 flags |= MSG_MORE;
         }
 
-	size_t bytesToSent = 0;
-	if(outbound.bytesSent < sizeof(Header)) {
-	    bytesToSent = sizeof(Header) - outbound.bytesSent;
-	    void *tmp = &outbound.header;
-	    memcpy(buf, static_cast<char *>(static_cast<void *>(&outbound.header)) + outbound.bytesSent, bytesToSent);
-	    outbound.bytesSent = sizeof(Header);
-	}
-	memcpy(buf + bytesToSent, static_cast<char *>(outbound.message.getData()) + outbound.bytesSent - sizeof(Header), outbound.message.getLength() + sizeof(Header) - outbound.bytesSent);	
-	bytesToSent += outbound.message.getLength() + sizeof(Header) - outbound.bytesSent;
-
-	if(address.post_send(buf, IBV_WR_SEND, remote_props, bytesToSent)) {
-	    ERROR(" Failed to send SR.");
+	// Send the header via RDMA.
+	memcpy(buf, reinterpret_cast<char *>(&outbound.header), sizeof(Header));
+	if(address.post_send(buf, IBV_WR_SEND, remote_props, sizeof(Header))) {
+	    ERROR(" Failed to send the header.");
 	    if(address.resources_destroy(buf))
 		ERROR(" Failed to destroy RDMA resources.");
 	    abort();
 	}
-
+	// Send the contents via RDMA.
+	memcpy(buf, static_cast<char *>(outbound.message.getData()), outbound.message.getLength());
+	if(address.post_send(buf, IBV_WR_SEND, remote_props, outbound.message.getLength())) {
+	    ERROR(" Failed to send the message content.");
+	    if(address.resources_destroy(buf))
+		ERROR(" Failed to destroy RDMA resources.");
+	    abort();
+	}
+	// Poll completion to judge whether the send requests are completed or not.
 	if(address.poll_completion()) {
 	    ERROR(" Failed to poll completion.");
 	    if(address.resources_destroy(buf))

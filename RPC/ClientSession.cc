@@ -333,10 +333,10 @@ ClientSession::ClientSession(Event::Loop& eventLoop,
 	PANIC("Failed to connect QPs");
     }
 
-    messageSocket.reset(new MessageSocket(
-        messageSocketHandler, eventLoop, fd, maxMessageLength));
+//    messageSocket.reset(new MessageSocket(
+  //      messageSocketHandler, eventLoop, fd, maxMessageLength));
 
-//    messageSocket.reset(new MessageSocket( messageSocketHandler, eventLoop, fd, maxMessageLength, remote_props, target, buf));
+    messageSocket.reset(new MessageSocket( messageSocketHandler, eventLoop, fd, maxMessageLength, address, remote_props, buf));
 }
 
 std::shared_ptr<ClientSession>
@@ -352,6 +352,25 @@ ClientSession::makeSession(Event::Loop& eventLoop,
                           maxMessageLength,
                           timeout,
                           config));
+    session->self = session;
+    return session;
+}
+
+std::shared_ptr<ClientSession>
+ClientSession::makeSession(Event::Loop& eventLoop,
+                           const Address& address,
+                           uint32_t maxMessageLength,
+                           TimePoint timeout,
+                           const Core::Config& config,
+			   char *buf)
+{
+    std::shared_ptr<ClientSession> session(
+        new ClientSession(eventLoop,
+                          address,
+                          maxMessageLength,
+                          timeout,
+                          config));
+    (*session).buf = buf;
     session->self = session;
     return session;
 }

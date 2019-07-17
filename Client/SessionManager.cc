@@ -36,7 +36,8 @@ std::shared_ptr<RPC::ClientSession>
 SessionManager::createSession(const RPC::Address& address,
                               RPC::Address::TimePoint timeout,
                               ClusterUUID* clusterUUID,
-                              ServerId* serverId)
+                              ServerId* serverId,
+			      char *buf)
 {
     std::shared_ptr<RPC::ClientSession> session =
         RPC::ClientSession::makeSession(
@@ -44,7 +45,8 @@ SessionManager::createSession(const RPC::Address& address,
                         address,
                         Protocol::Common::MAX_MESSAGE_LENGTH,
                         timeout,
-                        config);
+                        config,
+		        buf);
     if (!session->getErrorMessage().empty() || skipVerify)
         return session;
 

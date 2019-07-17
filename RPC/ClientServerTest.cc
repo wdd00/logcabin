@@ -34,6 +34,7 @@
 #include "RPC/OpaqueServerRPC.h"
 #include "RPC/Service.h"
 #include "RPC/ThreadDispatchService.h"
+#include "Server/RaftConsensus.h"
 
 namespace LogCabin {
 namespace {

@@ -330,15 +330,16 @@ Peer::getSession(std::unique_lock<Mutex>& lockGuard)
         TimePoint timeout = Clock::now() + consensus.ELECTION_TIMEOUT;
         // release lock for concurrency
         Core::MutexUnlock<Mutex> unlockGuard(lockGuard);
-        RPC::Address target(addresses, Protocol::Common::DEFAULT_PORT);
-        //RPC::Address target(addresses, Protocol::Common::DEFAULT_PORT, dev_name, ib_port, gid_idx, buf);
+        //RPC::Address target(addresses, Protocol::Common::DEFAULT_PORT);
+        RPC::Address target(addresses, Protocol::Common::DEFAULT_PORT, consensus.dev_name, consensus.ib_port, consensus.gid_idx, buf);
 	target.refresh(timeout);
         Client::SessionManager::ServerId peerId(serverId);
         session = consensus.sessionManager.createSession(
             target,
             timeout,
             &consensus.globals.clusterUUID,
-            &peerId);
+            &peerId,
+	    buf);
     }
     return session;
 }

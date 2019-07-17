@@ -156,12 +156,16 @@ class SessionManager {
      * \param[in,out] serverId
      *      If set, the recipient will confirm that it has this server ID. If
      *      empty and the recipient returns one, this will be set.
+     * \param buf
+     *      The buffer related with the memory region of address, and is used to
+     *      save the message to be sent or received.
      */
     std::shared_ptr<RPC::ClientSession>
     createSession(const RPC::Address& address,
                   RPC::Address::TimePoint timeout,
                   ClusterUUID* clusterUUID = NULL,
-                  ServerId* serverId = NULL);
+                  ServerId* serverId = NULL,
+		  char *buf = NULL);
 
     Event::Loop& eventLoop;
   private:

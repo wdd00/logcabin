@@ -94,6 +94,19 @@ class ClientSession {
                 const Core::Config& config);
 
     /**
+     * Overload the makeSession function and add another parameter - buf which is 
+     * related with the memory region of RDMA connection and is used to save the 
+     * message to be sent or received.
+     */
+    static std::shared_ptr<ClientSession>
+    makeSession(Event::Loop& eventLoop,
+		const Address& address,
+		uint32_t maxMessageLength,
+		TimePoint timeout,
+		const Core::Config& config,
+		char *buf); 
+
+    /**
      * Return a ClientSession object that's already in an error state. This can
      * be useful for delaying errors until an RPC is waited on.
      * \param eventLoop
@@ -277,10 +290,10 @@ class ClientSession {
     const Address address;
 
     /**
-     * The buffer to storge the message to be sent. 
-     * Be public, so that MessageSocket::writable can modify/fill the content.
+     * The buffer to store the message to be sent.
+     * Be public, so that MessageSocket::writable & readable can write/read the content.
      */
-    char *buf;
+    char *buf; 
 
     /**
      * Receives events from #messageSocket.

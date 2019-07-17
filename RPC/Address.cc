@@ -182,7 +182,7 @@ Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_n
         PANIC("ibv_alloc_pd failed.");
     }
 
-    // how many entries the Completion Queue should hold? what about default value is 1024? 
+    // how many entries the Completion Queue should hold?
     unsigned int cq_size = CQ_LEN;
     cq = ibv_create_cq(ib_ctx, cq_size, NULL, NULL, 0);
     if (!cq) {
@@ -207,7 +207,7 @@ Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_n
 
     memset(buf, 0, Protocol::Common::MAX_MESSAGE_LENGTH);
 
-    //register the memory buffer
+    //register the memory region
     int mr_flags = IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_WRITE;
     mr = ibv_reg_mr(pd, buf, Protocol::Common::MAX_MESSAGE_LENGTH, mr_flags);
     if(!mr) {
@@ -234,12 +234,12 @@ Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_n
     qp_init_attr.recv_cq = cq;
     //the maximum number of outstanding Work Requests that can be posted to the Send Queue
     //(Recv Queue)in that Queue Pair.
-    qp_init_attr.cap.max_send_wr = 1024;
-    qp_init_attr.cap.max_recv_wr = 1024;
+    qp_init_attr.cap.max_send_wr = 1;
+    qp_init_attr.cap.max_recv_wr = 1;
     //the maximum number of scatter/gather elements in any Work Request that can be posted 
     //to the Send Queue (Recv Queue) in that Queue Pair.
-    qp_init_attr.cap.max_send_sge = 1024;
-    qp_init_attr.cap.max_recv_sge = 1024;
+    qp_init_attr.cap.max_send_sge = 1;
+    qp_init_attr.cap.max_recv_sge = 1;
     qp = ibv_create_qp(pd, &qp_init_attr);
     if(!qp) {
 	if(mr)

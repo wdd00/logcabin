@@ -25,8 +25,8 @@
 
 #include "Core/Time.h"
 
-//set the default size of completion queue is 1024
-#define CQ_LEN 1024
+//set the default size of completion queue is 1
+#define CQ_LEN 1
 // poll CQ timeout in millisec (2 seconds)
 #define MAX_POLL_CQ_TIMEOUT 2000
 

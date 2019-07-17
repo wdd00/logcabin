@@ -357,6 +357,11 @@ class Peer : public Server {
     Event::Loop& eventLoop;
 
     /**
+     * the definition of the buffer which is related with the memory region of RDMA connection.
+     */
+    char *buf; 
+
+    /**
      * Set to true when thread should exit.
      */
     bool exiting;

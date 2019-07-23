@@ -160,7 +160,8 @@ class MessageSocket {
                   int fd,
                   uint32_t maxMessageLength,
 		  const Address &address,
-		  Address::cm_con_data_t &remote_props, char *buf);
+		  Address::cm_con_data_t &remote_props, char *buf,
+		  int flag);
 
 
     /**
@@ -396,6 +397,11 @@ class MessageSocket {
      * Registers sendSocket with the event loop.
      */
     Event::File::Monitor sendSocketMonitor;
+
+    /**
+     * RDMA connection if flag = 1; socket connection if flag = 0
+     */
+    int flag = 0; 
 
     // MessageSocket is non-copyable.
     MessageSocket(const MessageSocket&) = delete;

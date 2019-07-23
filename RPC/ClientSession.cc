@@ -336,7 +336,7 @@ ClientSession::ClientSession(Event::Loop& eventLoop,
 //    messageSocket.reset(new MessageSocket(
   //      messageSocketHandler, eventLoop, fd, maxMessageLength));
 
-    messageSocket.reset(new MessageSocket( messageSocketHandler, eventLoop, fd, maxMessageLength, address, remote_props, buf));
+    messageSocket.reset(new MessageSocket( messageSocketHandler, eventLoop, fd, maxMessageLength, address, remote_props, buf, 1));
 }
 
 std::shared_ptr<ClientSession>

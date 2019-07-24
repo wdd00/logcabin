@@ -190,7 +190,7 @@ MessageSocket::MessageSocket(Handler& handler,
 MessageSocket::MessageSocket(Handler& handler,
                              Event::Loop& eventLoop, int fd,
                              uint32_t maxMessageLength,
-			     const Address &address, Address::cm_con_data_t &remote_props, char *buf, int flag)
+			     const Address &address, Address::cm_con_data_t &remote_props, char *buf)
     : maxMessageLength(maxMessageLength)
     , address(address)
     , remote_props(remote_props)
@@ -204,7 +204,7 @@ MessageSocket::MessageSocket(Handler& handler,
     , sendSocket(fd, *this)
     , receiveSocketMonitor(eventLoop, receiveSocket, EPOLLIN)
     , sendSocketMonitor(eventLoop, sendSocket, 0)
-    , flag(flag)
+    , flag(1)
 {
 }
 

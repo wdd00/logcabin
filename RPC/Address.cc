@@ -84,6 +84,7 @@ Address::Address(const std::string& str, uint16_t defaultPort, const char *dev_n
     , pd()
     , gid_idx(gid_idx)
     , ib_port(ib_port)
+    , flag(1)
 {
     struct ibv_device **dev_list = NULL;
     struct ibv_device *ib_dev = NULL;

@@ -160,8 +160,7 @@ class MessageSocket {
                   int fd,
                   uint32_t maxMessageLength,
 		  const Address &address,
-		  Address::cm_con_data_t &remote_props, char *buf,
-		  int flag);
+		  Address::cm_con_data_t &remote_props, char *buf);
 
 
     /**

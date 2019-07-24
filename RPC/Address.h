@@ -94,6 +94,11 @@ class Address {
     Address& operator=(const Address& other);
 
     /**
+     * RDMA connection if flag = 1; socket connection if flag = 0
+     */
+    int flag = 0;     
+
+    /**
      * Structure to exchange data which is needed to connect the QPs 
      */
     struct cm_con_data_t {

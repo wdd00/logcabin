@@ -330,17 +330,36 @@ Peer::getSession(std::unique_lock<Mutex>& lockGuard)
         TimePoint timeout = Clock::now() + consensus.ELECTION_TIMEOUT;
         // release lock for concurrency
         Core::MutexUnlock<Mutex> unlockGuard(lockGuard);
-        //RPC::Address target(addresses, Protocol::Common::DEFAULT_PORT);
-        RPC::Address target(addresses, Protocol::Common::DEFAULT_PORT, consensus.dev_name, consensus.ib_port, consensus.gid_idx, buf);
-	target.refresh(timeout);
-        Client::SessionManager::ServerId peerId(serverId);
+        if(consensus.dev_name) {
+            RPC::Address target(addresses, Protocol::Common::DEFAULT_PORT, consensus.dev_name, consensus.ib_port, consensus.gid_idx, buf);
+	    target.refresh(timeout);
+	    Client::SessionManager::ServerId peerId(serverId);
+            session = consensus.sessionManager.createSession(
+                target,
+                timeout,
+                &consensus.globals.clusterUUID,
+                &peerId,
+                buf);
+	} else {
+	    RPC::Address target(addresses, Protocol::Common::DEFAULT_PORT);
+	    target.refresh(timeout);
+	    Client::SessionManager::ServerId peerId(serverId);
+            session = consensus.sessionManager.createSession(
+                target,
+                timeout,
+                &consensus.globals.clusterUUID,
+                &peerId,
+                buf);
+	}
+	//target.refresh(timeout);
+/*        Client::SessionManager::ServerId peerId(serverId);
         session = consensus.sessionManager.createSession(
             target,
             timeout,
             &consensus.globals.clusterUUID,
             &peerId,
 	    buf);
-    }
+  */  }
     return session;
 }
 

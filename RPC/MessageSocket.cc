@@ -53,8 +53,8 @@ MessageSocket::SendSocket::SendSocket(int fd,
     : Event::File(fd)
     , messageSocket(messageSocket)
 {
-    int flag = 1;
-    int r = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+    int socket_flag = 1;
+    int r = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &socket_flag, sizeof(socket_flag));
     if (r < 0) {
         // This should be a warning, but some unit tests pass weird types of
         // file descriptors in here. It's not very important, anyhow.
@@ -82,8 +82,8 @@ MessageSocket::ReceiveSocket::ReceiveSocket(int fd,
 {
     // I don't know that TCP_NODELAY has any effect if we're only reading from
     // this file descriptor, but I guess it can't hurt.
-    int flag = 1;
-    int r = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+    int socket_flag = 1;
+    int r = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &socket_flag, sizeof(socket_flag));
     if (r < 0) {
         // This should be a warning, but some unit tests pass weird types of
         // file descriptors in here. It's not very important, anyhow.
